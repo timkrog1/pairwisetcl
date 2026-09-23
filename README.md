@@ -25,5 +25,3 @@ Relevant papers:
 https://doi.org/10.1021/acs.jpclett.6c00125
 
 https://arxiv.org/pdf/2605.03177
-
-hyperfines_from_spin_density and random_bath_generator were adapted from [PySCF](https://github.com/pyscf/pyscf) and [PyCCE](https://github.com/MICCoMpy/PyCCE), respectively.
