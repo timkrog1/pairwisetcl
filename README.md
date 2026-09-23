@@ -8,6 +8,14 @@ or
 
 ```python3 -m pip install git+https://github.com/timkrog1/pairwisetcl.git```
 
+or
+
+```python3 -m venv .test_env```
+```source .test_env/bin/activate```
+```python3 -m pip install git+https://github.com/timkrog1/pairwisetcl.git```
+
+for a virtual installation (safer).
+
 Python tools for computing doublet-electron spin dephasing due to the pairwise flip-flops of nuclear spin using the Time-convolutionless (TCL) master equation. 
 
 Relevant papers:
