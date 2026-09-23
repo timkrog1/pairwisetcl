@@ -1,5 +1,4 @@
-PAIRWISETCL LICENSE
-============================================================================
+#### pairwisetcl license
 
 MIT License
 
@@ -23,8 +22,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-ADAPTED CODE LICENSE
-============================================================================
+#### adapted code license
 
 1. [random_bath_generator / generates random cartesian vectors]
 Modified from code originally created by Nikita Onizhuk [PyCCE](https://github.com/MICCoMpy/PyCCE).
