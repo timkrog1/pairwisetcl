@@ -13,4 +13,5 @@ Python tools for computing doublet-electron spin dephasing due to the pairwise f
 Relevant papers:
 
 https://doi.org/10.1021/acs.jpclett.6c00125
+
 https://arxiv.org/pdf/2605.03177
