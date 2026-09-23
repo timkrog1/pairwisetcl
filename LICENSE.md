@@ -23,13 +23,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-
 ADAPTED CODE LICENSE
 ============================================================================
 
 1. [random_bath_generator / generates random cartesian vectors]
-Modified from code originally created by Nikita Onizhuk (PyCCE).
+Modified from code originally created by Nikita Onizhuk [PyCCE](https://github.com/MICCoMpy/PyCCE).
 Licensed under the MIT License:
 
 MIT License
@@ -43,7 +41,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 2. [hyperfines_from_spin_density / calculates hyperfine coupling for a given Cartesian coordinate from a spin density object]
-Modified from code originally created by Xing Zhang (PySCF/prop/hfc/uhf) and the PySCF package.
+Modified from code originally created by Xing Zhang [PySCF/prop/hfc/uhf](https://github.com/pyscf/properties/blob/master/pyscf/prop/hfc/uhf.py) and the [PySCF](https://github.com/pyscf/pyscf) package.
 
 Apache License, Version 2.0
 
