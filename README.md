@@ -11,7 +11,9 @@ or
 or
 
 ```python3 -m venv .test_env```
+
 ```source .test_env/bin/activate```
+
 ```python3 -m pip install git+https://github.com/timkrog1/pairwisetcl.git```
 
 for a virtual installation (safer).
