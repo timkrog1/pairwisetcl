@@ -372,7 +372,7 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
             
             self.molecule_tcl2,self.molecule_tcl4,self.molecule_alpha_map = self.e_n_n_from_orca_dephasing(vk,vl,vk_indices,vl_indices,ak,al)
        
-    def analyze_solvent_pairs(self):
+    def analyze_solvent_pairs(self,verbose=False):
     
         # this function will need to interface with the orca spin densities
         # should have different behavior depending on if self.spin_density and self.basis_set are None
@@ -398,8 +398,8 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         self.molecule_solvent_tcl2 = np.zeros([len(self.time_space)])
         self.solvent_tcl4 = np.zeros([len(self.time_space)])
         self.molecule_solvent_tcl4 = np.zeros([len(self.time_space)])
-
-        print('averaging over configurations of the random bath\n')
+        if verbose:
+            print('averaging over configurations of the random bath\n')
             
         for n in range(self.coordinates.bath_number_configurations):
                 
@@ -463,21 +463,22 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
                 self.molecule_solvent_tcl2 += molecule_solvent_tcl2
                 self.molecule_solvent_tcl4 += molecule_solvent_tcl4
             
-            print(f'{n+1} out of {self.coordinates.bath_number_configurations} done')
+            if verbose:
+                print(f'{n+1} out of {self.coordinates.bath_number_configurations} done')
             
         self.solvent_tcl2 /= self.coordinates.bath_number_configurations
         self.solvent_tcl4 /= self.coordinates.bath_number_configurations
         self.molecule_solvent_tcl2 /= self.coordinates.bath_number_configurations
         self.molecule_solvent_tcl4 /= self.coordinates.bath_number_configurations
     
-    def get_total_dephasing(self):
+    def get_total_dephasing(self,verbose=False):
         
         if not isinstance(self.molecule_tcl2,np.ndarray):
             self.analyze_molecule_pairs()
-            self.analyze_solvent_pairs()
+            self.analyze_solvent_pairs(verbose=verbose)
             
         elif isinstance(self.molecule_tcl2,np.ndarray) and not isinstance(self.solvent_tcl2,np.ndarray):
-            self.analyze_solvent_pairs()
+            self.analyze_solvent_pairs(verbose=verbose)
         
         self.total_tcl2 = self.molecule_tcl2 * self.solvent_tcl2 * self.molecule_solvent_tcl2
         self.total_tcl4 = self.molecule_tcl4 * self.solvent_tcl4 * self.molecule_solvent_tcl4 
