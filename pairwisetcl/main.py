@@ -548,7 +548,7 @@ class DephasingAnalysis:
         for n in range(self.coordinates.bath_number_configurations):
                 
             random_bath = random_bath_generator(self.coordinates.bath_box_length,self.coordinates.molecule_atoms,atom_filter_distance=self.coordinates.bath_atom_filter,spin_dens_filter_distance=self.coordinates.bath_spin_dens_filter,
-                                 density=self.coordinates.bath_density, density_units='cm-3',center=self.coordinates.bath_center)
+                                 density=self.coordinates.bath_density, density_units='cm-3',center=self.coordinates.bath_center,seed=self.coordinates.bath_seed)
                         
             if len(random_bath) == 0:
                 self.solvent_tcl2 += 1
