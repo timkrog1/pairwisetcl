@@ -100,7 +100,7 @@ class GenerateCoordinates:
         self.bath_seed = seed
         
         self.bath_max_spins = len(random_bath_generator(self.bath_box_length,self.molecule_atoms,atom_filter_distance=0.0,spin_dens_filter_distance=0.0,
-                                     density=self.bath_density, density_units='cm-3',center=self.bath_center,seed=seed))
+                                     density=self.bath_density, density_units='cm-3',center=self.bath_center,seed=self.bath_seed))
 
 class DephasingAnalysis:
     
