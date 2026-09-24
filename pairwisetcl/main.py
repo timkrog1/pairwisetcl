@@ -8,9 +8,43 @@ from .tcltools import *
 class GenerateCoordinates:
     
     '''
-    This needs to have a generator for the random bath parameters... 
-    which will be averaged over in the pairwise and dephasing module - not sure of the best way to go about this
-    methods could be added to interface with diferent electronic structure outputs... thinking of Gaussian
+    Class for generating coordinates of the molecule and (optional) parameters for a random hydrogen spin bath.
+    
+    Args:
+        coordinates (dict or str): from where to generate the coordinates of the molecule.
+            Can be either a dictionary of number indexed atom types as keys and ndarrays of shape (3,) as the values
+            or .xyz file
+            or an ORCA .out or .log file
+    
+    Optional Method:
+        set_bath_parameters: set the parameters for a random hydrogen spin bath 
+            args: 
+                density (float): density of random spin bath in cm^-3.
+                box_length (int): edge length of cubic box.
+                number_configurations (int): number of configurations of the random bath to average over
+            optional args:
+                center (ndarray with shape (3,)): position of center of box, usually taken to be the position of the electron.
+                                                  If not supplied, set to the origin.
+                atom_filter (float): filters the randomly placed particles such that none are closer to any molecular atom 
+                                     than this value.
+                                     Defaults to 2 angstroms if not supplied.
+                spin_dens_filter (float): filters the randomly placed particles such thatn none are closer 
+                                          to the electron position (center of spin density) than this value.
+                                          Defaults to 7 angstroms if not supplied.
+    
+    Attributes:
+        bath_density: defined in set_bath_parameters
+        bath_box_length: defined in set_bath_parameters
+        bath_number_configurations: defined in set_bath_parameters
+        bath_center: defined in set_bath_parameters
+        bath_max_spins (int): the maximum amount of randomly placed spins generated from the random bath function. 
+                              after the filters are implemented, the actual number of spins for each configuration
+                              will be less than this value.
+        bath_atom_filter: defined in set_bath_parameters
+        bath_spin_dens_filter: defined in set_bath_parameters
+        molecule_atoms: a dictionary of indexed atom types as keys and cartesian coordinates in angstroms as values
+        molecule_spins: a dictionary of indexed atoms and cartesian coordinates as values, only including hydrogen spins
+                        found on the molecule
     '''
     
     def __init__(self,coordinates):
@@ -57,12 +91,6 @@ class GenerateCoordinates:
         
     def set_bath_parameters(self,density,box_length,number_configurations,center=None,atom_filter=None,spin_dens_filter=None): 
         
-        '''
-        This function needs to generate the couplings averaged over all the number of configurations
-        and can be inherited for dephasing and pairwise analysis
-        So the output ought to be m-s and s-s tcl contributions and
-        '''
-        
         self.bath_density = density
         self.bath_box_length = box_length
         self.bath_number_configurations = number_configurations 
@@ -72,25 +100,41 @@ class GenerateCoordinates:
         
         self.bath_max_spins = len(random_bath_generator(self.bath_box_length,self.molecule_atoms,atom_filter_distance=0.0,spin_dens_filter_distance=0.0,
                                      density=self.bath_density, density_units='cm-3',center=self.bath_center))
-            
-    # Could add a method to calculate density on the fly given a solvent molecule, temperature, mixture, etc
 
-class DephasingAnalysis: # this may need to be explicitly a child class, I'll find out as I go
+class DephasingAnalysis:
     
     '''
-    Calculate pairwise analysis for the entire system
-    Couplings should be calculated on the fly
-    Should have a way of calculating couplings on the fly if they are not prefigured from ORCA or something else
-    How to handle spin densities, hfcs, etc?
-    pair analysis is calculated always at the 2nd order tcl level, but dynamics can be calculated at 2nd or 4th order
-    2nd order will be default, to add 4th order will be a method call
+    Class for performing the electron doublet spin Hahn-echo dephasing due to pairwise nuclear spin flip flops.
+    
+    Args:
+        time_space (ndarray of shape (t,) where t is the number of time points): the time space to calculate the dephasing.
+        parent (Class Object): the parent TclAnalysis class - included to ensure inheritance 
+                               of important attributes of TclAnalysis
+    
+    Methods:
+        analyze_molecule_pairs:
+            args:
+        analyze_solvent_pairs:
+            args:
+        get_total_dephasing:
+            args:
+    
+    Attributes:
+        time_space (ndarray of shape (t,)): defined in Args
+        molecule_hfcs (dict): dictionary containing pre-computed hyperfine couplings, inherited from parent class
+        coordinates (attribute): coordinates attribute inherited from parent class
+        charge (int): charge of the molecule, inherited from parent class
+        basis_set (dict): 
+        
+        molecule_alpha_map
+
     '''
     
     def __init__(self,time_space,parent):
         
         self.time_space = time_space
-        self.molecule_hfcs = parent.molecule_hfcs # this could be None if there aren't any being imported from ORCA
-        self.coordinates = parent.coordinates # this inherits the bath parameters generated with the Coordinates class
+        self.molecule_hfcs = parent.molecule_hfcs 
+        self.coordinates = parent.coordinates 
         self.charge = parent.charge
         self.basis_set = parent.basis_set
         self.spin_density = parent.spin_density
@@ -100,9 +144,7 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         self.molecule_tcl2 = None
         self.solvent_tcl2 = None
     
-    def e_n_n_point_dipole_dephasing(self,vk,vl,vk_indices,vl_indices,verbose=True):
-        
-        # this function can be used for the solvent stuff too
+    def e_n_n_point_dipole_dephasing(self,vk,vl,vk_indices,vl_indices,verbose=True,sort_alpha=False):
         
         if isinstance(self.coordinates.bath_center,np.ndarray):
             electron_coordinate = self.coordinates.bath_center
@@ -124,7 +166,6 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         ak = (1 - (3*rek[:,[2]]**2)/(mag_rek**2)) * (((MU0*GYRO_E*GYRO_H*PLANCK**2) / 
                              (16*np.pi**3*mag_rek**3))*(1000/(PLANCK*(1e-10)**3*(1e-4)**2)))
         
-        
         # e-nl
         
         rel = electron_coordinate - vl
@@ -132,7 +173,6 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
     
         al = (1 - (3*rel[:,[2]]**2)/(mag_rel**2)) * (((MU0*GYRO_E*GYRO_H*PLANCK**2) / 
                              (16*np.pi**3*mag_rel**3))*(1000/(PLANCK*(1e-10)**3*(1e-4)**2)))
-    
     
         # nk-nl
     
@@ -156,15 +196,66 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         
         alpha = (4 * (bkl**2*(ak-al)**2) / (bkl**2 + (ak-al)**2)**2)
         
-        alpha_map = np.zeros([alpha_map_size,alpha_map_size])
-        alpha_map[vk_indices,vl_indices] = alpha.squeeze()
-        alpha_map[vl_indices,vk_indices] = alpha.squeeze()
-    
-        return exp_tcl2,exp_tcl4,alpha_map
-    
-    def e_n_n_from_orca_dephasing(self,vk,vl,vk_indices,vl_indices,ak,al):
+        alpha = alpha.squeeze()
+        mag_rkl = mag_rkl.squeeze()
+        mag_rek = mag_rek.squeeze()
+        mag_rel = mag_rel.squeeze()
         
-        # this function can be used for the solvent stuff too
+        if sort_alpha:
+
+            # also sorting based on average e-n distance for n-n distance > 1 and < 3
+            
+            avg_mag_rekl = 1/2 * (mag_rek + mag_rel)
+            
+            avg_rekl_mask = (mag_rkl > 1.0) & (mag_rkl < 3.0)
+            
+            filtered_alpha = np.where(avg_rekl_mask,alpha,0.0)
+            filtered_rkl = np.where(avg_rekl_mask,mag_rkl,0.0)
+            filtered_rekl = np.where(avg_rekl_mask,avg_mag_rekl,np.inf) 
+            
+            filtered_sort_order = np.argsort(filtered_rekl)
+            
+            filtered_alpha_sorted = filtered_alpha[filtered_sort_order]
+            filtered_rekl_sorted = filtered_rekl[filtered_sort_order]
+            
+            filtered_alpha_sorted_map = np.zeros([alpha_map_size,alpha_map_size])
+            filtered_alpha_sorted_map[vk_indices,vl_indices] = filtered_alpha_sorted
+            filtered_alpha_sorted_map[vl_indices,vk_indices] = filtered_alpha_sorted
+            
+            filtered_rekl_sorted_map = np.zeros([alpha_map_size,alpha_map_size])
+            filtered_rekl_sorted_map[vk_indices,vl_indices] = filtered_rekl_sorted
+            filtered_rekl_sorted_map[vl_indices,vk_indices] = filtered_rekl_sorted
+            
+            # now sorting based on rkl - unfiltered
+            
+            sort_order = np.argsort(mag_rkl)
+            mag_rkl = mag_rkl[sort_order]
+            alpha = alpha[sort_order]
+            
+            # recompute size of returnable matrix
+            
+        else:
+            
+            filtered_alpha_sorted_map = None
+            filtered_rekl_sorted_map = None
+       
+        alpha_map = np.zeros([alpha_map_size,alpha_map_size])
+        alpha_map[vk_indices,vl_indices] = alpha
+        alpha_map[vl_indices,vk_indices] = alpha
+        
+        rkl_map = np.zeros([alpha_map_size,alpha_map_size])
+        rkl_map[vk_indices,vl_indices] = mag_rkl
+        rkl_map[vl_indices,vk_indices] = mag_rkl
+        
+    
+        return exp_tcl2,exp_tcl4,alpha_map,rkl_map,filtered_alpha_sorted_map,filtered_rekl_sorted_map 
+    
+    def e_n_n_from_orca_dephasing(self,vk,vl,vk_indices,vl_indices,ak,al,sort_alpha=False):
+        
+        if isinstance(self.coordinates.bath_center,np.ndarray):
+            electron_coordinate = self.coordinates.bath_center
+        else:
+            electron_coordinate = np.array([0,0,0])
         
         MU0 = np.pi*4e-7
         PLANCK = 6.626e-34
@@ -192,14 +283,62 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         alpha = (4 * (bkl**2*(ak-al)**2) / (bkl**2 + (ak-al)**2)**2)
                         
         alpha_map_size = int((1 + np.sqrt(1+8*len(vk)))/2) 
+        
+        alpha = alpha.squeeze()
+        bkl = bkl.squeeze()
+            
+        mag_rkl = mag_rkl.squeeze()
+        mag_rel = np.linalg.norm(electron_coordinate-vl,axis=1,keepdims=True).squeeze()
+        mag_rek = np.linalg.norm(electron_coordinate-vk,axis=1,keepdims=True).squeeze()
+            
+        if sort_alpha:
+            
+            # also sorting based on average e-n distance for n-n distance > 1 and < 3
+            
+            avg_mag_rekl = 1/2 * (mag_rek + mag_rel)
+            
+            avg_rekl_mask = (mag_rkl > 1.0) & (mag_rkl < 3.0)
+            
+            filtered_alpha = np.where(avg_rekl_mask,alpha,0.0)
+            filtered_rkl = np.where(avg_rekl_mask,mag_rkl,0.0)
+            filtered_rekl = np.where(avg_rekl_mask,avg_mag_rekl,np.inf) 
+            
+            filtered_sort_order = np.argsort(filtered_rekl)
+            
+            filtered_alpha_sorted = filtered_alpha[filtered_sort_order]
+            filtered_rekl_sorted = filtered_rekl[filtered_sort_order]
+            
+            filtered_alpha_sorted_map = np.zeros([alpha_map_size,alpha_map_size])
+            filtered_alpha_sorted_map[vk_indices,vl_indices] = filtered_alpha_sorted
+            filtered_alpha_sorted_map[vl_indices,vk_indices] = filtered_alpha_sorted
+            
+            filtered_rekl_sorted_map = np.zeros([alpha_map_size,alpha_map_size])
+            filtered_rekl_sorted_map[vk_indices,vl_indices] = filtered_rekl_sorted
+            filtered_rekl_sorted_map[vl_indices,vk_indices] = filtered_rekl_sorted
+                        
+            # unfiltered sorting of rkl
+            
+            sort_order = np.argsort(mag_rkl)
+            
+            mag_rkl = mag_rkl[sort_order]
+            alpha = alpha[sort_order]
+            
+        else:
+            
+            filtered_alpha_sorted_map = None
+            filtered_rekl_sorted_map = None
             
         alpha_map = np.zeros([alpha_map_size,alpha_map_size])
-        alpha_map[vk_indices,vl_indices] = alpha.squeeze()
-        alpha_map[vl_indices,vk_indices] = alpha.squeeze()
+        alpha_map[vk_indices,vl_indices] = alpha
+        alpha_map[vl_indices,vk_indices] = alpha
+        
+        rkl_map = np.zeros([alpha_map_size,alpha_map_size])
+        rkl_map[vk_indices,vl_indices] = mag_rkl
+        rkl_map[vl_indices,vk_indices] = mag_rkl
     
-        return exp_tcl2,exp_tcl4,alpha_map
+        return exp_tcl2,exp_tcl4,alpha_map,rkl_map,filtered_alpha_sorted_map,filtered_rekl_sorted_map
     
-    def e_n_n_molecule_solvent(self,vk,vl,ak=None,verbose=False):
+    def e_n_n_molecule_solvent(self,vk,vl,ak=None,verbose=False,sort_alpha=False):
     
         # if ak != None, uses orca hfcs for the molecule spins
         # if ak == None, uses point dipole for everything
@@ -264,11 +403,21 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         # alpha map
         
         alpha = (4 * (bkl**2*(delta_a)**2) / (bkl**2 + (delta_a)**2)**2)
+       
         alpha_map = np.squeeze(alpha,axis=2)
-        
-        return exp_tcl2,exp_tcl4,alpha_map
+        bkl_map = np.squeeze(bkl,axis=2)
+        rkl_map = np.squeeze(mag_rkl,axis=2)
     
-    def e_n_n_molecule_solvent_spin_density(self,vk,vl,ak=None,al=None,verbose=False):
+        if sort_alpha:
+            
+            #sort_indices = np.argsort(-bkl_map,axis=1)
+            sort_indices = np.argsort(rkl_map,axis=1)
+            rkl_map = np.take_along_axis(rkl_map,sort_indices,axis=1)
+            alpha_map = np.take_along_axis(alpha_map,sort_indices,axis=1)
+        
+        return exp_tcl2,exp_tcl4,alpha_map,rkl_map
+    
+    def e_n_n_molecule_solvent_spin_density(self,vk,vl,ak=None,al=None,verbose=False,sort_alpha=False):
     
         # if ak != None, uses orca hfcs for the molecule spins
         # if ak == None, uses point dipole for molecule spins
@@ -332,24 +481,22 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         # alpha map
         
         alpha = (4 * (bkl**2*(delta_a)**2) / (bkl**2 + (delta_a)**2)**2)
-        alpha_map = np.squeeze(alpha,axis=2)
         
-        return exp_tcl2,exp_tcl4,alpha_map
+        alpha_map = np.squeeze(alpha,axis=2)
+        bkl_map = np.squeeze(bkl,axis=2)
+        rkl_map = np.squeeze(mag_rkl,axis=2)
+    
+        if sort_alpha:
+            
+            #sort_indices = np.argsort(-bkl_map,axis=1)
+            sort_indices = np.argsort(rkl_map,axis=1)
+            rkl_map = np.take_along_axis(rkl_map,sort_indices,axis=1)
+            
+            alpha_map = np.take_along_axis(alpha_map,sort_indices,axis=1)
+        
+        return exp_tcl2,exp_tcl4,alpha_map,rkl_map
     
     def analyze_molecule_pairs(self):
-        
-        '''
-        attempting a rewrite for this function to be faster
-        not bothering to store imap, it's not a good idea
-        '''
-        
-        # don't need to initialize either of these objects here
-        
-        #self.molecule_alpha_map = np.zeros([len(self.coordinates.molecule_spins),len(self.coordinates.molecule_spins)])
-        #self.molecule_dephasing = np.zeros([2,len(self.time_space)])
-            
-        # self.get_magnetic_couplings() - this should be used somewhere in the numpy vectorization
-        # it is a method of this class since the class will have information about hfcs that can be used
         
         vectors = np.array(list(self.coordinates.molecule_spins.values()))
         vk_indices,vl_indices = np.triu_indices(len(vectors),k=1)
@@ -358,7 +505,7 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         
         if self.molecule_hfcs == None:
             
-            self.molecule_tcl2,self.molecule_tcl4,self.molecule_alpha_map = self.e_n_n_point_dipole_dephasing(vk,vl,vk_indices,vl_indices)
+            self.molecule_tcl2,self.molecule_tcl4,self.molecule_alpha_map,self.molecule_rkl_map,self.molecule_filtered_alpha_map,self.molecule_filtered_rekl_map = self.e_n_n_point_dipole_dephasing(vk,vl,vk_indices,vl_indices)
             
         else:
                         
@@ -370,13 +517,10 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
             ak = ak.reshape(-1,1)
             al = al.reshape(-1,1)
             
-            self.molecule_tcl2,self.molecule_tcl4,self.molecule_alpha_map = self.e_n_n_from_orca_dephasing(vk,vl,vk_indices,vl_indices,ak,al)
+            self.molecule_tcl2,self.molecule_tcl4,self.molecule_alpha_map,self.molecule_rkl_map,self.molecule_filtered_alpha_map,self.molecule_filtered_rekl_map = self.e_n_n_from_orca_dephasing(vk,vl,vk_indices,vl_indices,ak,al)
        
     def analyze_solvent_pairs(self,verbose=False):
     
-        # this function will need to interface with the orca spin densities
-        # should have different behavior depending on if self.spin_density and self.basis_set are None
-     
         if None in (self.coordinates.bath_density,self.coordinates.bath_box_length,self.coordinates.bath_number_configurations):
             raise ValueError('random bath parameters not set. If you want to include a random bath,\nuse the coordinates.set_bath_parameters(bath_density,bath_box_length,bath_number_configurations) method.\n\nAlternatively, just use analyze_molecule_pairs() to look at only the molecule.')
         
@@ -385,14 +529,13 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
             self.analyze_molecule_pairs()
             print('molecule spin analysis done. moving onto solvent analysis')
         
-        # will need to think of a clever way to do the averaging
-        # for now the logic simply needs to be compute with point dipole or with spin densities
-        # but that should be further in the logic so the code is more compact
-            
-        # will need to initialize some stuff I think, probably alpha map and dynamics arrays
-            
         self.solvent_alpha_map = np.zeros([self.coordinates.bath_max_spins,self.coordinates.bath_max_spins])
+        self.solvent_rkl_map = np.zeros([self.coordinates.bath_max_spins,self.coordinates.bath_max_spins])
+        self.solvent_filtered_alpha_map = np.zeros([self.coordinates.bath_max_spins,self.coordinates.bath_max_spins])
+        self.solvent_filtered_rekl_map = np.zeros([self.coordinates.bath_max_spins,self.coordinates.bath_max_spins])
+        
         self.molecule_solvent_alpha_map = np.zeros([len(self.coordinates.molecule_spins),self.coordinates.bath_max_spins])
+        self.molecule_solvent_rkl_map = np.zeros([len(self.coordinates.molecule_spins),self.coordinates.bath_max_spins])
             
         self.solvent_tcl2 = np.zeros([len(self.time_space)])
         self.molecule_solvent_tcl2 = np.zeros([len(self.time_space)])
@@ -405,11 +548,7 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
                 
             random_bath = random_bath_generator(self.coordinates.bath_box_length,self.coordinates.molecule_atoms,atom_filter_distance=self.coordinates.bath_atom_filter,spin_dens_filter_distance=self.coordinates.bath_spin_dens_filter,
                                  density=self.coordinates.bath_density, density_units='cm-3',center=self.coordinates.bath_center)
-            
-            # random_bath has a shape (N,3) where N is the number of random bath spins. 
-            # N might be different for each iteration since they are randomly placed
-            # and then filtered by distance from the molecular atoms  
-            
+                        
             if len(random_bath) == 0:
                 self.solvent_tcl2 += 1
                 self.solvent_tcl4 += 1
@@ -423,21 +562,24 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
             
             if not isinstance(self.spin_density,np.ndarray):
                 
-                solvent_tcl2,solvent_tcl4,solvent_alpha_map = self.e_n_n_point_dipole_dephasing(vk,vl,vk_indices,vl_indices,verbose=False)
+                solvent_tcl2,solvent_tcl4,solvent_alpha_map,solvent_rkl_map,filtered_alpha_map,filtered_rekl_map = self.e_n_n_point_dipole_dephasing(vk,vl,vk_indices,vl_indices,verbose=False,sort_alpha=True) 
                 
                 self.solvent_tcl2 += solvent_tcl2
                 self.solvent_tcl4 += solvent_tcl4
                 
-                # need to add in the m-s pair logic - needs different calls
+                self.solvent_alpha_map[:(solvent_alpha_map.shape[0]),:(solvent_alpha_map.shape[1])] += solvent_alpha_map
+                self.solvent_rkl_map[:(solvent_rkl_map.shape[0]),:(solvent_rkl_map.shape[1])] += solvent_rkl_map
+                self.solvent_filtered_alpha_map[:(filtered_alpha_map.shape[0]),:(filtered_alpha_map.shape[1])] += filtered_alpha_map
+                self.solvent_filtered_rekl_map[:(filtered_rekl_map.shape[0]),:(filtered_rekl_map.shape[1])] += filtered_rekl_map
                 
-                molecule_solvent_tcl2,molecule_solvent_tcl4,molecule_solvent_alpha_map = self.e_n_n_molecule_solvent(np.array(list(self.coordinates.molecule_spins.values())),random_bath,ak=self.molecule_hfcs,verbose=False) # check use of self.molecule_hfcs here
-                
-                # needs to know if orca, pdip, or spin density for the molecule part of molecule-solvent pairs
+                molecule_solvent_tcl2,molecule_solvent_tcl4,molecule_solvent_alpha_map,molecule_solvent_rkl_map = self.e_n_n_molecule_solvent(np.array(list(self.coordinates.molecule_spins.values())),random_bath,ak=self.molecule_hfcs,verbose=False,sort_alpha=True) 
                 
                 self.molecule_solvent_tcl2 += molecule_solvent_tcl2
                 self.molecule_solvent_tcl4 += molecule_solvent_tcl4
                 
-                # need something here probably to sort the alpha_map...
+                self.molecule_solvent_alpha_map[:(molecule_solvent_alpha_map.shape[0]),:(molecule_solvent_alpha_map.shape[1])] += molecule_solvent_alpha_map
+                self.molecule_solvent_rkl_map[:(molecule_solvent_rkl_map.shape[0]),:(molecule_solvent_rkl_map.shape[1])] += molecule_solvent_rkl_map
+                
                 
             else:
                 
@@ -451,17 +593,23 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
                 ak = ak.reshape(-1,1)
                 al = al.reshape(-1,1)
                 
-                solvent_tcl2,solvent_tcl4,solvent_alpha_map = self.e_n_n_from_orca_dephasing(vk,vl,vk_indices,vl_indices,ak,al)
+                solvent_tcl2,solvent_tcl4,solvent_alpha_map,solvent_rkl_map,filtered_alpha_map,filtered_rekl_map = self.e_n_n_from_orca_dephasing(vk,vl,vk_indices,vl_indices,ak,al,sort_alpha=True)
                 
                 self.solvent_tcl2 += solvent_tcl2
                 self.solvent_tcl4 += solvent_tcl4
                 
-                # need molecule-solvent logic now... then it's all done
+                self.solvent_alpha_map[:(solvent_alpha_map.shape[0]),:(solvent_alpha_map.shape[1])] += solvent_alpha_map
+                self.solvent_rkl_map[:(solvent_rkl_map.shape[0]),:(solvent_rkl_map.shape[1])] += solvent_rkl_map
+                self.solvent_filtered_alpha_map[:(filtered_alpha_map.shape[0]),:(filtered_alpha_map.shape[1])] += filtered_alpha_map
+                self.solvent_filtered_rekl_map[:(filtered_rekl_map.shape[0]),:(filtered_rekl_map.shape[1])] += filtered_rekl_map
                 
-                molecule_solvent_tcl2,molecule_solvent_tcl4,molecule_solvent_alpha_map = self.e_n_n_molecule_solvent_spin_density(np.array(list(self.coordinates.molecule_spins.values())),random_bath,ak=self.molecule_hfcs,al=solvent_hfcs,verbose=False)
+                molecule_solvent_tcl2,molecule_solvent_tcl4,molecule_solvent_alpha_map,molecule_solvent_rkl_map = self.e_n_n_molecule_solvent_spin_density(np.array(list(self.coordinates.molecule_spins.values())),random_bath,ak=self.molecule_hfcs,al=solvent_hfcs,verbose=False,sort_alpha=True)
                 
                 self.molecule_solvent_tcl2 += molecule_solvent_tcl2
                 self.molecule_solvent_tcl4 += molecule_solvent_tcl4
+                
+                self.molecule_solvent_alpha_map[:(molecule_solvent_alpha_map.shape[0]),:(molecule_solvent_alpha_map.shape[1])] += molecule_solvent_alpha_map
+                self.molecule_solvent_rkl_map[:(molecule_solvent_rkl_map.shape[0]),:(molecule_solvent_rkl_map.shape[1])] += molecule_solvent_rkl_map
             
             if verbose:
                 print(f'{n+1} out of {self.coordinates.bath_number_configurations} done')
@@ -470,6 +618,13 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         self.solvent_tcl4 /= self.coordinates.bath_number_configurations
         self.molecule_solvent_tcl2 /= self.coordinates.bath_number_configurations
         self.molecule_solvent_tcl4 /= self.coordinates.bath_number_configurations
+        
+        self.solvent_alpha_map /= self.coordinates.bath_number_configurations
+        self.solvent_rkl_map /= self.coordinates.bath_number_configurations
+        self.molecule_solvent_alpha_map /= self.coordinates.bath_number_configurations
+        self.molecule_solvent_rkl_map /= self.coordinates.bath_number_configurations
+        self.solvent_filtered_alpha_map /= self.coordinates.bath_number_configurations
+        self.solvent_filtered_rekl_map /= self.coordinates.bath_number_configurations
     
     def get_total_dephasing(self,verbose=False):
         
@@ -483,24 +638,26 @@ class DephasingAnalysis: # this may need to be explicitly a child class, I'll fi
         self.total_tcl2 = self.molecule_tcl2 * self.solvent_tcl2 * self.molecule_solvent_tcl2
         self.total_tcl4 = self.molecule_tcl4 * self.solvent_tcl4 * self.molecule_solvent_tcl4 
         
-#
-#
-### Parent Class
-#
-#
-
 class TclAnalysis: 
     
     '''
-    parent class - contains everything needed to calculate dynamics and do the pairwise analysis
+    Class for initiating a TCL2 and TCL4 analysis of electron doublet spin Hahn-echo dephasing due to pairwise
+    nuclear spin flip flops.
+      
+    Methods:
+        get_coordinates:
+            args:
+                coordinates: see GenerateCoordinates
+        get_orca_hfcs:
+            args:
+                output_file: output file generated from ORCA containing computed HFCs for the hydrogen spins on 
+                             the molecule. If not used, all couplings will be calculated from the point dipole
+        get_orca_spin_density: TO DO
+        get_orca_basis_set: TO DO
+        get_dephasing_analysis: TO DO
     
-    should contain
-    coordinates
-    spin density
-    hfcs
-    basis set information
-    
-    if the electronic structure parameters are not present in the parent class, should just do everything from point dipole
+    Attributes:
+        TO DO
     '''
     
         
@@ -527,16 +684,7 @@ class TclAnalysis:
         self.molecule_hfcs = {f"{i+1}H": value for i, (key, value) in enumerate(self.molecule_hfcs.items())}
         
     def get_orca_spin_density(self,output_file):
-        
-        # look through input file to determine if it is CASSCF
-        # look through input file to make sure the
-        # %output
-        # Print[P_SpinDensity] 1
-        # end
-        # section is there, ONLY if it's not CAS. if it's CAS, it'll automatically print the MO spin density
-        
-        # RuntimeError should be implemented here if self.basis_set is None. Will need it for the transformed spin density
-        
+               
         with open(output_file,'r') as f:
             
             input_file_flag = False
@@ -564,11 +712,7 @@ class TclAnalysis:
             raise RuntimeError('Spin density matrix not printed in output file.\nEnsure verbosity is at the correct level in ORCA.\nIf you are running a single-reference calculation, include\n%output\nPrint[P_SpinDensity] 1\nend\nin your input file.')
             
         self.spin_density = spin_density_from_orca_output(output_file,casscf=casscf_flag)        
-        
-        # code to transform spin density to correct format
-        
-        # need a molden file for casscf - there is probably a way around this, but it's the only way I've done this so far
-        
+                
         if casscf_flag: 
          
             directory = '/'.join(output_file.split('/')[:-1]) + '/'
@@ -585,8 +729,6 @@ class TclAnalysis:
             self.spin_density = active_mo_coeffs @ self.spin_density @ active_mo_coeffs.T
             
             self.spin_density = transform_spin_density(self.spin_density,self.basis_set,self.coordinates.atom_labels)
-            
-            #self.charge and mo_coeff are both accessible here
         
         else:
             
@@ -594,11 +736,7 @@ class TclAnalysis:
             self.spin_density = transform_spin_density(self.spin_density,self.basis_set,self.coordinates.atom_labels)    
     
     def get_orca_basis_set(self,output_file):
-        
-        # look at input file to determine if ! PrintBasis is in the header
-        # also determine if an auxiliary basis was used - not going to be too thorough with this, 
-        # ORCA has too many ways to initiate density fitting
-        
+                
         with open(output_file,'r') as f:
             
             input_file_flag = False
