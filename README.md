@@ -18,7 +18,7 @@ or
 
 for a virtual installation (safer).
 
-Python tools for computing doublet-electron spin dephasing due to the pairwise flip-flops of nuclear spin using the Time-convolutionless (TCL) master equation. 
+Python tools for computing doublet-electron spin Hahn-echo dephasing due to the pairwise flip-flops of nuclear spin using the Time-convolutionless (TCL) master equation. 
 
 Relevant papers:
 
