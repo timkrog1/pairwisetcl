@@ -89,7 +89,7 @@ class GenerateCoordinates:
                 self.molecule_spins[f'{spin_active_count}H'] = val         
                 spin_active_count += 1
         
-    def set_bath_parameters(self,density,box_length,number_configurations,center=None,atom_filter=None,spin_dens_filter=None): 
+    def set_bath_parameters(self,density,box_length,number_configurations,center=None,atom_filter=None,spin_dens_filter=None,seed=None): 
         
         self.bath_density = density
         self.bath_box_length = box_length
@@ -97,9 +97,10 @@ class GenerateCoordinates:
         self.bath_center = center
         self.bath_atom_filter = atom_filter
         self.bath_spin_dens_filter = spin_dens_filter
+        self.bath_seed = seed
         
         self.bath_max_spins = len(random_bath_generator(self.bath_box_length,self.molecule_atoms,atom_filter_distance=0.0,spin_dens_filter_distance=0.0,
-                                     density=self.bath_density, density_units='cm-3',center=self.bath_center))
+                                     density=self.bath_density, density_units='cm-3',center=self.bath_center,seed=seed))
 
 class DephasingAnalysis:
     
